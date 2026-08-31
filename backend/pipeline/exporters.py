@@ -602,11 +602,8 @@ def export_pdf(case_data: Dict[str, Any], documents: List[Dict[str, Any]], extra
         alignment=1
     )
 
-    def _make_para(text: str, default_st: ParagraphStyle, deva_st: ParagraphStyle = cell_style_deva) -> Paragraph:
-        str_val = str(text or '')
-        if _has_devanagari(str_val) and _DEVANAGARI_FONT == 'NotoDevanagari':
-            return Paragraph(str_val, deva_st)
-        return Paragraph(str_val, default_st)
+    def _make_para(text: str, default_st: ParagraphStyle) -> Paragraph:
+        return Paragraph(str(text or ''), default_st)
 
     story = []
 
