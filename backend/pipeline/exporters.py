@@ -13,22 +13,37 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from typing import Dict, Any, List
 
-# Register NotoSansDevanagari for Hindi/Marathi Unicode PDF rendering
-_DEVANAGARI_FONT = "Helvetica"   # fallback default
-_DEVANAGARI_FONT_BOLD = "Helvetica-Bold"
-_FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "fonts")
-_DEVANAGARI_TTF = os.path.join(_FONT_DIR, "NotoSansDevanagari-Regular.ttf")
+from reportlab.pdfbase.pdfmetrics import registerFontFamily
 
-try:
-    if os.path.exists(_DEVANAGARI_TTF):
-        pdfmetrics.registerFont(TTFont("NotoDevanagari", _DEVANAGARI_TTF))
-        _DEVANAGARI_FONT = "NotoDevanagari"
-        _DEVANAGARI_FONT_BOLD = "NotoDevanagari"
-        print("[Exporters] NotoSansDevanagari font registered for Devanagari PDF export.")
-    else:
-        print(f"[Exporters] Devanagari font not found at {_DEVANAGARI_TTF} — falling back to Helvetica.")
-except Exception as _font_err:
-    print(f"[Exporters] Font registration warning: {_font_err} — falling back to Helvetica.")
+# Register Unicode Font for full Latin + Devanagari (Hindi / Marathi) rendering
+_DOC_FONT = "Helvetica"
+_DOC_FONT_BOLD = "Helvetica-Bold"
+
+_FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "fonts")
+_FONT_CANDIDATES = [
+    os.path.join(_FONT_DIR, "Nirmala.ttf"),
+    os.path.join(_FONT_DIR, "NotoSansDevanagari-Regular.ttf"),
+    "/usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf",
+    "C:/Windows/Fonts/Nirmala.ttf"
+]
+
+for _fc in _FONT_CANDIDATES:
+    if os.path.exists(_fc):
+        try:
+            pdfmetrics.registerFont(TTFont("DocRefineFont", _fc))
+            registerFontFamily(
+                "DocRefineFont",
+                normal="DocRefineFont",
+                bold="DocRefineFont",
+                italic="DocRefineFont",
+                boldItalic="DocRefineFont"
+            )
+            _DOC_FONT = "DocRefineFont"
+            _DOC_FONT_BOLD = "DocRefineFont"
+            print(f"[Exporters] Registered Unicode font from {_fc}")
+            break
+        except Exception as _f_err:
+            print(f"[Exporters] Could not register {_fc}: {_f_err}")
 
 
 def export_json(case_data: Dict[str, Any], documents: List[Dict[str, Any]], extractions: List[Dict[str, Any]]) -> bytes:
@@ -452,10 +467,15 @@ def export_xlsx(case_data: Dict[str, Any], documents: List[Dict[str, Any]], extr
     return buffer.getvalue()
 
 
+def _has_devanagari(text: str) -> bool:
+    import re
+    return bool(re.search(r'[\u0900-\u097F]', str(text or '')))
+
+
 def export_pdf(case_data: Dict[str, Any], documents: List[Dict[str, Any]], extractions: List[Dict[str, Any]]) -> bytes:
     """
-    Generates a clean executive PDF case report with Devanagari Unicode support,
-    metadata blocks, and auto-wrapped table cells.
+    Generates an executive, publication-grade PDF case audit report with
+    Devanagari Unicode support, high-contrast metadata cards, and structured tables.
     """
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -471,99 +491,272 @@ def export_pdf(case_data: Dict[str, Any], documents: List[Dict[str, Any]], extra
     title_style = ParagraphStyle(
         'DocRefineTitle',
         parent=styles['Heading1'],
-        fontName=_DEVANAGARI_FONT_BOLD,
-        fontSize=16,
-        textColor=colors.HexColor('#0F172A'),
-        spaceAfter=8
+        fontName=_DOC_FONT_BOLD,
+        fontSize=13,
+        leading=16,
+        textColor=colors.HexColor('#FFFFFF')
+    )
+
+    subtitle_style = ParagraphStyle(
+        'DocRefineSubtitle',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT,
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor('#94A3B8')
     )
 
     h2_style = ParagraphStyle(
         'DocRefineH2',
         parent=styles['Heading2'],
-        fontName=_DEVANAGARI_FONT_BOLD,
-        fontSize=12,
-        textColor=colors.HexColor('#1E293B'),
-        spaceBefore=10,
+        fontName=_DOC_FONT_BOLD,
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor('#0F172A'),
+        spaceBefore=8,
         spaceAfter=4
     )
 
-    body_style = ParagraphStyle(
-        'DocRefineBody',
+    meta_label = ParagraphStyle(
+        'DocRefineMetaLabel',
         parent=styles['Normal'],
-        fontName=_DEVANAGARI_FONT,
-        fontSize=9,
-        leading=12,
-        textColor=colors.HexColor('#334155')
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#475569')
+    )
+
+    meta_val = ParagraphStyle(
+        'DocRefineMetaVal',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT,
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#0F172A')
+    )
+
+    th_style = ParagraphStyle(
+        'DocRefineTH',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#FFFFFF'),
+        alignment=1  # Center
+    )
+
+    th_style_left = ParagraphStyle(
+        'DocRefineTHLeft',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor('#FFFFFF')
     )
 
     cell_style = ParagraphStyle(
         'DocRefineCell',
         parent=styles['Normal'],
-        fontName=_DEVANAGARI_FONT,
+        fontName=_DOC_FONT,
         fontSize=8,
-        leading=10,
+        leading=10.5,
         textColor=colors.HexColor('#1E293B')
     )
 
     cell_bold = ParagraphStyle(
         'DocRefineCellBold',
         parent=styles['Normal'],
-        fontName=_DEVANAGARI_FONT_BOLD,
+        fontName=_DOC_FONT_BOLD,
         fontSize=8,
-        leading=10,
+        leading=10.5,
         textColor=colors.HexColor('#0F172A')
     )
 
+    cell_score_green = ParagraphStyle(
+        'DocRefineScoreGreen',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8,
+        leading=10.5,
+        textColor=colors.HexColor('#065F46'),
+        alignment=1
+    )
+
+    cell_score_amber = ParagraphStyle(
+        'DocRefineScoreAmber',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8,
+        leading=10.5,
+        textColor=colors.HexColor('#92400E'),
+        alignment=1
+    )
+
+    cell_score_red = ParagraphStyle(
+        'DocRefineScoreRed',
+        parent=styles['Normal'],
+        fontName=_DOC_FONT_BOLD,
+        fontSize=8,
+        leading=10.5,
+        textColor=colors.HexColor('#991B1B'),
+        alignment=1
+    )
+
+    def _make_para(text: str, default_st: ParagraphStyle, deva_st: ParagraphStyle = cell_style_deva) -> Paragraph:
+        str_val = str(text or '')
+        if _has_devanagari(str_val) and _DEVANAGARI_FONT == 'NotoDevanagari':
+            return Paragraph(str_val, deva_st)
+        return Paragraph(str_val, default_st)
+
     story = []
-    story.append(Paragraph("DocRefine: Verified Document Rescue & Extraction Report", title_style))
-    story.append(Paragraph(f"<b>Case Name:</b> {case_data.get('name', 'N/A')} &nbsp;|&nbsp; <b>Case ID:</b> {case_data.get('id', 'N/A')}", body_style))
-    story.append(Paragraph(f"<b>Total Documents:</b> {len(documents)} &nbsp;|&nbsp; <b>Export Timestamp:</b> {case_data.get('updated_at', 'UTC')}", body_style))
-    story.append(Spacer(1, 12))
 
-    for doc_item in documents:
+    # 1. Header Banner
+    banner_content = [
+        [Paragraph("DocRefine — Verified Document Rescue & Extraction Report", title_style)],
+        [Paragraph("AI-Powered Multilingual Extraction • OCR Rescue • Maker-Checker Verification", subtitle_style)]
+    ]
+    banner_table = Table(banner_content, colWidths=[540])
+    banner_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#0F172A')),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+    ]))
+    story.append(banner_table)
+    story.append(Spacer(1, 8))
+
+    # 2. Case Metadata Card (2x2 table)
+    is_approved = any(e.get("status") == "approved" for e in extractions)
+    status_text = "Verified & Human-Approved" if is_approved else "Pending Verification"
+
+    meta_table_data = [
+        [
+            Paragraph("Case Name:", meta_label),
+            _make_para(case_data.get("name", "Review Case"), meta_val),
+            Paragraph("Case ID:", meta_label),
+            Paragraph(str(case_data.get("id", "N/A")), meta_val)
+        ],
+        [
+            Paragraph("Review Status:", meta_label),
+            Paragraph(status_text, meta_val),
+            Paragraph("Total Documents:", meta_label),
+            Paragraph(f"{len(documents)} file(s)", meta_val)
+        ],
+        [
+            Paragraph("Export Time:", meta_label),
+            Paragraph(str(case_data.get("updated_at", "UTC")), meta_val),
+            Paragraph("Engine Version:", meta_label),
+            Paragraph("DocRefine Verification Lab v2.8", meta_val)
+        ]
+    ]
+    meta_table = Table(meta_table_data, colWidths=[90, 180, 90, 180])
+    meta_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+        ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 10))
+
+    # 3. Documents & Extracted Fields
+    for doc_idx, doc_item in enumerate(documents, 1):
         doc_id = doc_item.get("id")
-        fname = doc_item.get("filename_safe", "Document")
+        fname = doc_item.get("filename_safe", f"Document #{doc_idx}")
         ext = next((e for e in extractions if e.get("document_id") == doc_id), {})
-        doc_type = (ext.get("schema_name") or "generic").upper()
-        rev_status = ext.get("status", "needs_review").upper()
+        doc_type = (ext.get("schema_name") or "generic").upper().replace("_", " ")
+        rev_status = (ext.get("status") or "needs_review").upper()
         q_score = doc_item.get("quality_score", 0)
+        q_band = (doc_item.get("quality_band") or "acceptable").title()
+        conf_overall = f"{ext.get('overall_confidence', 0)}%"
 
-        story.append(Paragraph(f"Document: <b>{fname}</b> ({doc_type})", h2_style))
-        story.append(Paragraph(f"Quality Score: <b>{q_score}/100</b> &nbsp;|&nbsp; Overall Status: <b>{rev_status}</b>", body_style))
+        # Document Header Card
+        doc_summary_text = (
+            f"<b>{fname}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Type: <b>{doc_type}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Quality: <b>{q_score}/100 ({q_band})</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Confidence: <b>{conf_overall}</b> &nbsp;&nbsp;|&nbsp;&nbsp; "
+            f"Status: <b>{rev_status}</b>"
+        )
+        doc_hdr_table = Table([[Paragraph(doc_summary_text, ParagraphStyle('DocHdr', fontName='Helvetica', textColor=colors.HexColor('#FFFFFF'), fontSize=8.5, leading=11))]], colWidths=[540])
+        doc_hdr_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1E293B')),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(doc_hdr_table)
 
-        # Field table with Paragraph-wrapped cells
+        # Fields Table
         fields = ext.get("fields", [])
         if fields:
             table_data = [[
-                Paragraph("<b>Field Name</b>", cell_bold),
-                Paragraph("<b>Extracted Value</b>", cell_bold),
-                Paragraph("<b>Confidence</b>", cell_bold),
-                Paragraph("<b>Validation</b>", cell_bold)
+                Paragraph("Field Name", th_style_left),
+                Paragraph("Extracted Value", th_style_left),
+                Paragraph("Confidence Score", th_style),
+                Paragraph("Validation Status", th_style)
             ]]
-            for f in fields:
+
+            table_styles = [
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#334155')),
+                ('TOPPADDING', (0, 0), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 6),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ]
+
+            for row_idx, f in enumerate(fields, 1):
                 val = str(f.get("normalized_value") or f.get("raw_value") or "[MISSING]")
-                state = f.get("confidence_state", "Red")
-                score = f"{f.get('field_score', 0)}% ({state})"
+                state = f.get("confidence_state", "Yellow")
+                score_num = f.get("field_score", 0)
+                score_str = f"{score_num}% ({state})"
+                val_status = (f.get("validation_status") or "valid").upper()
+
+                if state == "Green":
+                    score_p = Paragraph(score_str, cell_score_green)
+                elif state == "Yellow":
+                    score_p = Paragraph(score_str, cell_score_amber)
+                else:
+                    score_p = Paragraph(score_str, cell_score_red)
+
+                # Alternating row background
+                bg_color = colors.HexColor('#F8FAFC') if row_idx % 2 == 0 else colors.HexColor('#FFFFFF')
+                table_styles.append(('BACKGROUND', (0, row_idx), (-1, row_idx), bg_color))
+
+                label_text = f.get("label") or f.get("field_key", "")
                 table_data.append([
-                    Paragraph(f.get("label") or f.get("field_key", ""), cell_style),
-                    Paragraph(val, cell_style),
-                    Paragraph(score, cell_style),
-                    Paragraph(f.get("validation_status", "valid"), cell_style)
+                    _make_para(label_text, cell_bold),
+                    _make_para(val, cell_style),
+                    score_p,
+                    Paragraph(val_status, ParagraphStyle(f'ValSt_{row_idx}', fontName='Helvetica-Bold', fontSize=8, alignment=1, textColor=colors.HexColor('#059669') if val_status == 'VALID' else colors.HexColor('#DC2626')))
                 ])
 
-            t = Table(table_data, colWidths=[140, 220, 90, 90])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#F1F5F9')),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-                ('TOPPADDING', (0, 0), (-1, -1), 4),
-                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CBD5E1')),
-                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ]))
-            story.append(Spacer(1, 4))
+            t = Table(table_data, colWidths=[130, 230, 95, 85])
+            t.setStyle(TableStyle(table_styles))
             story.append(t)
         else:
-            story.append(Paragraph("<i>No structured fields extracted.</i>", body_style))
+            no_fields_p = Paragraph("<i>No structured fields extracted for this document.</i>", ParagraphStyle('NoF', fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#64748B'), alignment=1))
+            story.append(Table([[no_fields_p]], colWidths=[540], style=[
+                ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#F8FAFC')),
+                ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#E2E8F0')),
+                ('TOPPADDING', (0, 0), (-1, -1), 8),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ]))
+
         story.append(Spacer(1, 10))
+
+    # 4. Footer Note
+    footer_text = "DocRefine AI Intelligence • Confidential Verification Audit Report • Export generated via DocRefine API"
+    story.append(Paragraph(footer_text, ParagraphStyle('DocFooter', fontName='Helvetica', fontSize=7.5, leading=9, textColor=colors.HexColor('#94A3B8'), alignment=1)))
 
     doc.build(story)
     return buffer.getvalue()
