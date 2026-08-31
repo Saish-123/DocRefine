@@ -1,0 +1,130 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 220 8% 4%;
+  --foreground: 60 9% 95%;
+  --card: 220 7% 8%;
+  --card-foreground: 60 9% 95%;
+  --border: 220 5% 16%;
+  --input: 220 5% 16%;
+  --ring: 168 82% 53%;
+
+  /* Font stacks loaded via next/font in layout.tsx */
+  --font-display: "Fraunces", serif;
+  --font-sans: "Manrope", -apple-system, sans-serif;
+}
+
+.light {
+  --background: 60 20% 97%;
+  --foreground: 220 8% 8%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 8% 8%;
+  --border: 220 10% 88%;
+  --input: 220 10% 88%;
+  --ring: 168 70% 38%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+/* ------------------------------------------------------------------ */
+/* Tactile panel: flat surface + 1px hairline border. No blur, no soft */
+/* drop-shadow-on-everything - replaces the old .glass-panel look.    */
+/* ------------------------------------------------------------------ */
+.panel {
+  background: #131417;
+  border: 1px solid #26282D;
+}
+
+.light .panel {
+  background: #ffffff;
+  border: 1px solid #E4E4E0;
+}
+
+/* Kept for any lingering references; now maps to the flat panel style
+   instead of a blurred glass effect, so nothing breaks visually if a
+   component still references it. */
+.glass-panel {
+  background: #131417;
+  border: 1px solid #26282D;
+}
+.light .glass-panel {
+  background: #ffffff;
+  border: 1px solid #E4E4E0;
+}
+
+/* Hairline divider - used instead of soft box-shadows between sections */
+.rule-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #26282D 15%, #26282D 85%, transparent);
+}
+
+/* Signature accent gradient - reserved for the ONE bold moment per view
+   (primary CTA, hero scan-line) rather than tinting every surface. */
+.verify-gradient {
+  background: linear-gradient(135deg, #21F0C2 0%, #159A81 100%);
+}
+
+.verify-text-gradient {
+  background: linear-gradient(135deg, #21F0C2 0%, #6EE7D8 60%, #F3F4F1 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Monospace numerals for data/metrics - used sparingly for actual data,
+   not as a decorative label face. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scan-line signature element used in the hero (see page.tsx). GSAP
+   drives the transform in JS for scroll-linked control; this keyframe
+   fallback covers the idle/looping state and respects reduced motion. */
+@keyframes scan-sweep-css {
+  0%, 100% { transform: translateY(-4%); opacity: 0.4; }
+  50% { transform: translateY(104%); opacity: 1; }
+}
+
+.scan-line {
+  animation: scan-sweep-css 3.2s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
